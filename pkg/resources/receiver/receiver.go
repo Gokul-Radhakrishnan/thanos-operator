@@ -16,7 +16,6 @@ package receiver
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/banzaicloud/operator-tools/pkg/utils"
 	"github.com/banzaicloud/thanos-operator/pkg/resources"
@@ -151,9 +150,6 @@ func (r *receiverInstance) setArgs(args []string) []string {
 		args = append(args, fmt.Sprintf("--remote-write.server-tls-key=%s/%s", serverCertMountPath, "tls.key"))
 		args = append(args, fmt.Sprintf("--remote-write.server-tls-client-ca=%s/%s", serverCertMountPath, "ca.crt"))
 	}
-
-	// Sort generated args to prevent accidental diffs
-	sort.Strings(args)
 
 	return args
 }
