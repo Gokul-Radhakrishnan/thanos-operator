@@ -15,6 +15,9 @@
 package receiver
 
 import (
+	"fmt"
+	"sort"
+
 	"github.com/banzaicloud/operator-tools/pkg/utils"
 	"github.com/banzaicloud/thanos-operator/pkg/resources"
 	"github.com/banzaicloud/thanos-operator/pkg/sdk/api/v1alpha1"
@@ -22,6 +25,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+const serverCertMountPath = "/etc/tls/server"
+const clientCertMountPath = "/etc/tls/client"
 
 type Receiver struct {
 	*resources.ReceiverReconciler
@@ -132,11 +138,22 @@ func (r *receiverInstance) getLabels() resources.Labels {
 }
 
 func (r *receiverInstance) setArgs(args []string) []string {
+	receive := r.receiverGroup.DeepCopy()
 	args = append(args, resources.GetArgs(r.receiverGroup)...)
 
-	//Label
+	if receive.HTTPClientCertificate != "" {
+		args = append(args, fmt.Sprintf("--remote-write.client-tls-cert=%s/%s", clientCertMountPath, "tls.crt"))
+		args = append(args, fmt.Sprintf("--remote-write.client-tls-key=%s/%s", clientCertMountPath, "tls.key"))
+		args = append(args, fmt.Sprintf("--remote-write.client-tls-ca=%s/%s", clientCertMountPath, "ca.crt"))
+	}
+	if receive.HTTPServerCertificate != "" {
+		args = append(args, fmt.Sprintf("--remote-write.server-tls-cert=%s/%s", serverCertMountPath, "tls.crt"))
+		args = append(args, fmt.Sprintf("--remote-write.server-tls-key=%s/%s", serverCertMountPath, "tls.key"))
+		args = append(args, fmt.Sprintf("--remote-write.server-tls-client-ca=%s/%s", serverCertMountPath, "ca.crt"))
+	}
 
-	// Local-endpoint
+	// Sort generated args to prevent accidental diffs
+	sort.Strings(args)
 
 	return args
 }

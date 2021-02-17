@@ -85,43 +85,13 @@ func (r *receiverInstance) statefulset() (runtime.Object, reconciler.DesiredStat
 										Protocol:      corev1.ProtocolTCP,
 									},
 								},
-								VolumeMounts: []corev1.VolumeMount{
-									{
-										Name:      "objectstore-secret",
-										ReadOnly:  true,
-										MountPath: "/etc/config/",
-									},
-									{
-										Name:      "hashring-config",
-										ReadOnly:  true,
-										MountPath: "/etc/hashring/",
-									},
-								},
+								VolumeMounts:    r.getVolumeMounts(),
 								LivenessProbe:   r.GetCheck(resources.GetPort(receiveGroup.HTTPAddress), resources.HealthCheckPath),
 								ReadinessProbe:  r.GetCheck(resources.GetPort(receiveGroup.HTTPAddress), resources.ReadyCheckPath),
 								ImagePullPolicy: corev1.PullIfNotPresent,
 							},
 						},
-						Volumes: []corev1.Volume{
-							{
-								Name: "objectstore-secret",
-								VolumeSource: corev1.VolumeSource{
-									Secret: &corev1.SecretVolumeSource{
-										SecretName: r.receiverGroup.Config.MountFrom.SecretKeyRef.Name,
-									},
-								},
-							},
-							{
-								Name: "hashring-config",
-								VolumeSource: corev1.VolumeSource{
-									ConfigMap: &corev1.ConfigMapVolumeSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: r.getName("hashring-config"),
-										},
-									},
-								},
-							},
-						},
+						Volumes: r.getVolumes(),
 					},
 				},
 			},
@@ -172,4 +142,80 @@ func (r *receiverInstance) statefulset() (runtime.Object, reconciler.DesiredStat
 		ObjectMeta: r.getMeta(),
 	}
 	return delete, reconciler.StateAbsent, nil
+}
+
+func (r *receiverInstance) getVolumeMounts() []corev1.VolumeMount {
+	volumeMounts := make([]corev1.VolumeMount, 0)
+
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      "objectstore-secret",
+		ReadOnly:  true,
+		MountPath: "/etc/config/",
+	})
+
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      "hashring-config",
+		ReadOnly:  true,
+		MountPath: "/etc/hashring/",
+	})
+
+	if r.receiverGroup.HTTPClientCertificate != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "client-certificate",
+			ReadOnly:  true,
+			MountPath: clientCertMountPath,
+		})
+	}
+	if r.receiverGroup.HTTPServerCertificate != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "server-certificate",
+			ReadOnly:  true,
+			MountPath: serverCertMountPath,
+		})
+	}
+	return volumeMounts
+}
+
+func (r *receiverInstance) getVolumes() []corev1.Volume {
+	volumes := make([]corev1.Volume, 0)
+
+	volumes = append(volumes, corev1.Volume{
+		Name: "objectstore-secret",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: r.receiverGroup.Config.MountFrom.SecretKeyRef.Name,
+			},
+		},
+	})
+
+	volumes = append(volumes, corev1.Volume{
+		Name: "hashring-config",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: r.getName("hashring-config"),
+			},
+		},
+	})
+
+	if r.receiverGroup.HTTPClientCertificate != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "client-certificate",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.receiverGroup.HTTPClientCertificate,
+				},
+			},
+		})
+	}
+	if r.receiverGroup.HTTPServerCertificate != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "server-certificate",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: r.receiverGroup.HTTPServerCertificate,
+				},
+			},
+		})
+	}
+	return volumes
 }
