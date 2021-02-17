@@ -191,8 +191,10 @@ func (r *receiverInstance) getVolumes() []corev1.Volume {
 	volumes = append(volumes, corev1.Volume{
 		Name: "hashring-config",
 		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: r.getName("hashring-config"),
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: r.getName("hashring-config"),
+				},
 			},
 		},
 	})
